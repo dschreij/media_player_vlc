@@ -6198,7 +6198,7 @@ if __name__ == '__main__':
                 print_version()
                 media = player.get_media()
                 print('State: %s' % player.get_state())
-                print('Media: %s' % media.get_mrl())
+                #print('Media: %s' % media.get_mrl())
                 print('Track: %s/%s' % (player.video_get_track(), player.video_get_track_count()))
                 print('Current time: %s/%s' % (player.get_time(), media.get_duration()))
                 print('Position: %s' % player.get_position())
@@ -6207,7 +6207,7 @@ if __name__ == '__main__':
                 print('Video size: %s' % str(player.video_get_size(0)))  # num=0
                 print('Scale: %s' % player.video_get_scale())
                 print('Aspect ratio: %s' % player.video_get_aspect_ratio())
-               #print('Window:' % player.get_hwnd()
+                print('Window:' % player.get_hwnd()
             except Exception:
                 print('Error: %s', sys.exc_info()[1])
 

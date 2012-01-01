@@ -33,6 +33,7 @@ import sys
 from pygame.locals import *
 import libopensesame.generic_response
 
+# Check if vlc is available in the python site-packages library, or otherwise in the local dir
 try:
 	import vlc
 except:
@@ -68,11 +69,11 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		self.item_type = "media_player_vlc"
 		self.description = "Plays a video from file"
 		self.duration = "keypress"
-		self.fullscreen = "yes"
 		self.playaudio = "yes"
 		self.sendInfoToEyelink = "yes"
 		self.event_handler = ""
 		self.event_handler_trigger = "on keypress"
+		self.vlc_event_handler = None
 		
 		self.vlcInstance = vlc.Instance()
 		self.player = self.vlcInstance.media_player_new()
@@ -82,7 +83,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		item.item.__init__(self, name, experiment, string)
 
 	def prepare(self):
-
+	
 		"""
 		Opens the video file for playback and compiles the event handler code
 
@@ -92,10 +93,12 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 
 		# Pass the word on to the parent
 		item.item.prepare(self)
+		
+		print "Current backend: {0}".format(self.get("canvas_backend"))
 
 		# Give a sensible error message if the proper back-end has not been selected
-		if not self.has("canvas_backend") or self.get("canvas_backend") != "legacy":
-			raise exceptions.runtime_error("The media_player plug-in requires the legacy back-end. Sorry!")
+		if not self.has("canvas_backend") or self.get("canvas_backend") == "psycho":
+			raise exceptions.runtime_error("The media_player plug-in requires the legacy or opengl back-end. Sorry!")
 
 		# Byte-compile the event handling code (if any)
 		if self.event_handler.strip() != "":
@@ -120,18 +123,51 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		if not os.path.exists(path) or str(self.eval_text("video_src")).strip() == "":
 			raise exceptions.runtime_error("Video file '%s' was not found in video_player '%s' (or no video file was specified)." % (os.path.basename(path), self.name))
 		
-		media = self.vlcInstance.media_new(path)
-		self.player.set_media(media)
-		self.file_loaded = True
+		try:
+			self.media = self.vlcInstance.media_new(path)
+			self.player.set_media(self.media)
+			self.media.parse()
+			self.file_loaded = True
+		except:
+			raise exceptions.runtime_error("Error loading media file. Unsupported format?")	
 		
-		win_id = pygame.display.get_wm_info()['window']
+		print "Parsed {0}".format(self.media.is_parsed())
+		print "Track info {0}".format(self.media.get_tracks_info())
+		print "Duration {0}".format(self.media.get_duration())
+		print "FPS {0}".format(self.player.get_fps())
+		print "vid track description {0}".format(self.player.video_get_track())
+		
+		#if self.media.get_duration() == 0:
+		#	raise exceptions.runtime_error("Error reading media file. Either the media file is corrupt or its format is not supported")	
+				
+		# If playaudio is set to no, tell vlc to mute the movie
+		if self.playaudio == "no":
+			self.player.audio_set_mute(True)
+		else:
+			self.player.audio_set_mute(False)
+			self.player.audio_set_volume(50)   #Solves bug in vlc bindings: unmute sets sound status to unmuted but sets volume to 0
+		
+		# create reference to vlc event handler and set up event handling
+		self.vlc_event_handler = self.player.event_manager()
+		
+		# Send info to eyelink if it is found attached
+		if self.sendInfoToEyelink == "yes":
+			self.vlc_event_handler.event_attach(vlc.EventType.MediaPlayerTimeChanged, self.sendFrameInfoToEyelink)
+		
+		if self.has("canvas_backend"):
+			backend = self.get("canvas_backend")
+			if backend in ["legacy", "opengl"]:
+				win_id = pygame.display.get_wm_info()['window']
+			elif backend == "psychopy":
+				pass
+						
 		if sys.platform == "linux2": # for Linux using the X Server
 			self.player.set_xwindow(win_id)
 		elif sys.platform == "win32": # for Windows
 			self.player.set_hwnd(win_id)
 		elif sys.platform == "darwin": # for MacOS
 			self.player.set_agl(win_id)
-
+			
 		self.screen = self.experiment.surface
 		
 		# Indicate function for clean up that is run after the experiment finishes
@@ -139,9 +175,18 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 
 		# Report success
 		return True	
+		
+	def sendFrameInfoToEyelink(self, event):
+		"""
+		Sends frame info to the eye link log file which enables to create frame-based message reports 
+		"""
+		#print self.player.get_fps()
+		print "%s to %d. Frame %d" % (event.type, event.u.new_time, (event.u.new_time/30) )
+		if hasattr(self.experiment,"eyelink") and self.experiment.eyelink.connected():
+			self.experiment.eyelink.log("videoframe %s" % frame_no)
+			self.experiment.eyelink.status_msg("videoframe %s" % frame_no )
 
 	def run(self):
-
 		"""
 		Starts the playback of the video file. You can specify an optional callable object to handle events between frames (like keypresses)
 		This function needs to return a boolean, because it determines if playback is continued or stopped. If no callable object is provided
@@ -161,10 +206,8 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		self.experiment.response = None
 
 		if self.file_loaded:
-			# self.rewind()   #Make sure pointer is at the beginning of the video file
-
 			self.playing = True
-			startTime = pygame.time.get_ticks()
+			startTime = pygame.time.get_ticks()		
 			
 			#Lock the surface for VLC input
 			self.screen.lock()
@@ -194,11 +237,6 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 							if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
 								raise exceptions.runtime_error("The escape key was pressed")
 
-					# if self.sendInfoToEyelink == "yes" and hasattr(self.experiment,"eyelink") and self.experiment.eyelink.connected():
-					#  	frame_no = self.videoTrack.get_current_frame_frameno()
-					#	self.experiment.eyelink.log("videoframe %s" % frame_no)
-					#	self.experiment.eyelink.status_msg("videoframe %s" % frame_no )
-
 					# Check if max duration has been set, and exit if exceeded
 					if type(self.duration) == int:
 						if pygame.time.get_ticks() - startTime > (self.duration*1000):
@@ -210,7 +248,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 			#Free the surface
 			self.screen.unlock()
 			
-			libopensesame.generic_response.generic_response.response_bookkeeping(self)			
+			libopensesame.generic_response.generic_response.response_bookkeeping(self)		
 			return True
 		else:
 			raise exceptions.runtime_error("No video loaded")
@@ -219,6 +257,8 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 	def closePlayer(self):
 		self.player.release()
 		self.vlcInstance.release()
+		self.media = None
+		print "Released VLC modules"
 
 	def var_info(self):
 		return libopensesame.generic_response.generic_response.var_info(self)		
