@@ -97,7 +97,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 			if backend in ["legacy", "opengl"]:
 				win_id = pygame.display.get_wm_info()['window']
 			elif backend == "psycho":
-				win_id = self.experiment.window.winHandle._hwnd
+				win_id = self.experiment.window.winHandle._hwnd  #For windows for now. Do not yet know correct Linux and Mac OS X references
 						
 		if sys.platform == "linux2": # for Linux using the X Server
 			self.player.set_xwindow(win_id)
@@ -155,10 +155,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 			self.file_loaded = True
 		except:
 			raise exceptions.runtime_error("Error loading media file. Unsupported format?")	
-		
-		print "Duration {0}".format(self.media.get_duration())
-		print "FPS {0}".format(self.player.get_fps())
-		
+				
 		#if self.media.get_duration() == 0:
 		#	raise exceptions.runtime_error("Error reading media file. Either the media file is corrupt or its format is not supported")	
 				
@@ -218,12 +215,15 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		self.experiment.response = None
 
 		if self.file_loaded:
-			self.playing = True
-			startTime = pygame.time.get_ticks()		
+			self.playing = True		
 			
 			#Lock the surface for VLC input when backend is legacy or opengl
 			if hasattr(self,"screen"):
 				self.screen.lock()
+				startTime = pygame.time.get_ticks()
+			else:
+				self.timer = psychopy.core.Clock()
+				startTime = self.timer.getTime()
 			
 			#Start movie playback
 			self.player.play()
@@ -233,6 +233,8 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 					self.playing = self.handleEvent()
 				else:
 					# Process all events
+					
+					#Pygame event (legacy and opengl)
 					if self.get("keyboard_backend") in ["legacy","opengl"] or self.get("mouse_backend") in ["legacy","opengl"] :
 						for event in pygame.event.get():
 							if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
@@ -255,8 +257,32 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 						if type(self.duration) == int:
 							if pygame.time.get_ticks() - startTime > (self.duration*1000):
 								self.playing = False
+								
+					#Psychopy event handling 			
 					elif self.get("keyboard_backend") == "psycho" or self.get("mouse_backend") == "psycho":
-						print(psychopy.event)
+						for key in psychopy.event.getKeys():
+							if self._event_handler != None:
+								self.playing = self.handleEvent(event)
+							elif self.duration == "keypress":
+								self.playing = False
+								self.experiment.response = key
+								self.experiment.end_response_interval = self.timer.getTime()
+							
+							# No equivalent for mouse button presses yet for psychopy							
+							# elif event.type == pygame.MOUSEBUTTONDOWN and self.duration == "mouseclick":
+								# self.playing = False
+								# self.experiment.response = event.button
+								# self.experiment.end_response_interval = pygame.time.get_ticks()
+
+							# Catch escape presses
+							if key == "escape":
+								raise exceptions.runtime_error("The escape key was pressed")
+							
+						# Check if max duration has been set, and exit if exceeded
+						if type(self.duration) == int:
+							if self.timer.getTime() - startTime > self.duration:
+								self.playing = False
+								
 		
 			#Stop playback
 			self.player.stop()
