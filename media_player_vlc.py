@@ -47,7 +47,7 @@ except:
 	import os.path
 	path = os.path.join(os.path.dirname(__file__), "vlc.py")
 	vlc = imp.load_source("vlc", path)
-	
+
 
 class media_player_vlc(item.item, libopensesame.generic_response.generic_response):
 
@@ -67,7 +67,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		"""
 
 		# The version of the plug-in
-		self.version = 1.0
+		self.version = 0.10
 
 		self.file_loaded = False
 		self.paused = False
@@ -80,14 +80,14 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		self.event_handler = ""
 		self.event_handler_trigger = "on keypress"
 		self.vlc_event_handler = None
-		
+
 		self.vlcInstance = vlc.Instance()
 		self.player = self.vlcInstance.media_player_new()
 		self.media = None
 
 		# The parent handles the rest of the construction
 		item.item.__init__(self, name, experiment, string)
-		
+
 	def _set_display_window(self):
 		"""
 		Routes vlc output to correct experiment window dependig on the opensesame backend used
@@ -98,17 +98,17 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 				win_id = pygame.display.get_wm_info()['window']
 			elif backend == "psycho":
 				win_id = self.experiment.window.winHandle._hwnd  #For windows for now. Do not yet know correct Linux and Mac OS X references
-						
+
 		if sys.platform == "linux2": # for Linux using the X Server
 			self.player.set_xwindow(win_id)
 		elif sys.platform == "win32": # for Windows
 			self.player.set_hwnd(win_id)
 		elif sys.platform == "darwin": # for MacOS
 			self.player.set_agl(win_id)
-		
+
 
 	def prepare(self):
-	
+
 		"""
 		Opens the video file for playback and compiles the event handler code
 
@@ -118,7 +118,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 
 		# Pass the word on to the parent
 		item.item.prepare(self)
-		
+
 		print "Current backend: {0}".format(self.get("canvas_backend"))
 
 		# Give a sensible error message if the proper back-end has not been selected
@@ -147,47 +147,47 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		# Open the video file
 		if not os.path.exists(path) or str(self.eval_text("video_src")).strip() == "":
 			raise exceptions.runtime_error("Video file '%s' was not found in video_player '%s' (or no video file was specified)." % (os.path.basename(path), self.name))
-		
+
 		try:
 			self.media = self.vlcInstance.media_new(path)
 			self.player.set_media(self.media)
 			self.media.parse()
 			self.file_loaded = True
 		except:
-			raise exceptions.runtime_error("Error loading media file. Unsupported format?")	
-				
+			raise exceptions.runtime_error("Error loading media file. Unsupported format?")
+
 		#if self.media.get_duration() == 0:
-		#	raise exceptions.runtime_error("Error reading media file. Either the media file is corrupt or its format is not supported")	
-				
+		#	raise exceptions.runtime_error("Error reading media file. Either the media file is corrupt or its format is not supported")
+
 		# If playaudio is set to no, tell vlc to mute the movie
 		if self.playaudio == "no":
 			self.player.audio_set_mute(True)
 		else:
 			self.player.audio_set_mute(False)
 			self.player.audio_set_volume(50)   #Solves bug in vlc bindings: unmute sets sound status to unmuted but sets volume to 0
-		
+
 		# create reference to vlc event handler and set up event handling
 		self.vlc_event_handler = self.player.event_manager()
-		
+
 		# Send info to eyelink if it is found attached
 		if self.sendInfoToEyelink == "yes":
 			self.vlc_event_handler.event_attach(vlc.EventType.MediaPlayerTimeChanged, self.sendFrameInfoToEyelink)
-		
+
 		# Pass thru vlc output to experiment window
 		self._set_display_window()
-			
+
 		if self.get("canvas_backend") in ["legacy","opengl"]:
 			self.screen = self.experiment.surface
-		
+
 		# Indicate function for clean up that is run after the experiment finishes
 		self.experiment.cleanup_functions.append(self.closePlayer)
 
 		# Report success
-		return True	
-		
+		return True
+
 	def sendFrameInfoToEyelink(self, event):
 		"""
-		Sends frame info to the eye link log file which enables to create frame-based message reports 
+		Sends frame info to the eye link log file which enables to create frame-based message reports
 		"""
 		print "%s to %d. Frame %d" % (event.type, event.u.new_time, (event.u.new_time/30) )
 		print "FPS {0}".format(self.player.get_fps())
@@ -207,7 +207,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 
 		# Log the onset time of the item
 		self.set_item_onset()
-		
+
 		# Set some response variables, in case a response will be given
 		if self.experiment.start_response_interval == None:
 			self.experiment.start_response_interval = self.get("time_%s" % self.name)
@@ -215,8 +215,8 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		self.experiment.response = None
 
 		if self.file_loaded:
-			self.playing = True		
-			
+			self.playing = True
+
 			#Lock the surface for VLC input when backend is legacy or opengl
 			if hasattr(self,"screen"):
 				self.screen.lock()
@@ -224,16 +224,16 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 			else:
 				self.timer = psychopy.core.Clock()
 				startTime = self.timer.getTime()
-			
+
 			#Start movie playback
 			self.player.play()
-			
+
 			while self.player.get_state() != vlc.State.Ended and self.playing:
 				if self._event_handler_always:
 					self.playing = self.handleEvent()
 				else:
 					# Process all events
-					
+
 					#Pygame event (legacy and opengl)
 					if self.get("keyboard_backend") in ["legacy","opengl"] or self.get("mouse_backend") in ["legacy","opengl"] :
 						for event in pygame.event.get():
@@ -257,8 +257,8 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 						if type(self.duration) == int:
 							if pygame.time.get_ticks() - startTime > (self.duration*1000):
 								self.playing = False
-								
-					#Psychopy event handling 			
+
+					#Psychopy event handling
 					elif self.get("keyboard_backend") == "psycho" or self.get("mouse_backend") == "psycho":
 						for key in psychopy.event.getKeys():
 							if self._event_handler != None:
@@ -267,8 +267,8 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 								self.playing = False
 								self.experiment.response = key
 								self.experiment.end_response_interval = self.timer.getTime()
-							
-							# No equivalent for mouse button presses yet for psychopy							
+
+							# No equivalent for mouse button presses yet for psychopy
 							# elif event.type == pygame.MOUSEBUTTONDOWN and self.duration == "mouseclick":
 								# self.playing = False
 								# self.experiment.response = event.button
@@ -277,26 +277,26 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 							# Catch escape presses
 							if key == "escape":
 								raise exceptions.runtime_error("The escape key was pressed")
-							
+
 						# Check if max duration has been set, and exit if exceeded
 						if type(self.duration) == int:
 							if self.timer.getTime() - startTime > self.duration:
 								self.playing = False
-								
-		
+
+
 			#Stop playback
 			self.player.stop()
-			
+
 			#Free the surface
 			if hasattr(self,"screen"):
 				self.screen.unlock()
-			
-			libopensesame.generic_response.generic_response.response_bookkeeping(self)		
+
+			libopensesame.generic_response.generic_response.response_bookkeeping(self)
 			return True
 		else:
 			raise exceptions.runtime_error("No video loaded")
 			return False
-			
+
 	def closePlayer(self):
 		self.player.release()
 		self.vlcInstance.release()
@@ -306,7 +306,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 			self.screen = None
 
 	def var_info(self):
-		return libopensesame.generic_response.generic_response.var_info(self)		
+		return libopensesame.generic_response.generic_response.var_info(self)
 
 class qtmedia_player_vlc(media_player_vlc, qtplugin.qtplugin):
 
@@ -352,7 +352,7 @@ class qtmedia_player_vlc(media_player_vlc, qtplugin.qtplugin):
 		self.add_combobox_control("event_handler_trigger", "Call custom Python code", ["on keypress", "after every frame"], tooltip = "Determine when the custom event handling code is called.")
 		self.add_line_edit_control("duration", "Duration", tooltip = "Expecting a value in seconds, 'keypress' or 'mouseclick'")
 		self.add_editor_control("event_handler", "Custom Python code for handling keypress and mouseclick events (See Help for more information)", syntax = True, tooltip = "Specify how you would like to handle events like mouse clicks or keypresses. When set, this overrides the Duration attribute")
-		self.add_text("<small><b>Media Player OpenSesame Plugin v%.2f, Copyright (2011) Daniel Schreij</b></small>" % self.version)
+		self.add_text("<small><b>Media Player VLC OpenSesame Plugin v%.2f, Copyright (2010-2012) Daniel Schreij</b></small>" % self.version)
 
 		# Unlock
 		self.lock = True
