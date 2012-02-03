@@ -97,7 +97,12 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 			if backend in ["legacy", "opengl"]:
 				win_id = pygame.display.get_wm_info()['window']
 			elif backend == "psycho":
-				win_id = self.experiment.window.winHandle._hwnd  #For windows for now. Do not yet know correct Linux and Mac OS X references
+				# For windows and linux for now. Do not yet know correct Mac OS X window references
+				# Does noet seem to work yet for full screen psychopy windows
+				if sys.platform == "linux2":
+					win_id = self.experiment.window.winHandle._window
+				elif sys.platform == "win32":
+					win_id = self.experiment.window.winHandle._hwnd
 						
 		if sys.platform == "linux2": # for Linux using the X Server
 			self.player.set_xwindow(win_id)
