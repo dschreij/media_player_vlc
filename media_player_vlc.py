@@ -90,7 +90,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		self.description = "Plays a video from file"
 		self.duration = "keypress"
 		self.playaudio = "yes"
-		self.sendInfoToEyelink = "yes"
+		self.sendInfoToEyelink = "no"
 		self.event_handler = ""
 		self.event_handler_trigger = "on keypress"
 		self.vlc_event_handler = None
@@ -119,6 +119,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		"""
 		Routes vlc output to correct experiment window dependig on the opensesame backend used
 		"""
+		
 		if self.has("canvas_backend"):
 			backend = self.get("canvas_backend")
 			if backend in ["legacy", "opengl"]:
@@ -126,11 +127,17 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 			elif backend == "psycho":
 				# For windows and linux for now. Do not yet know correct Mac OS X window references
 				# Does noet seem to work yet for full screen psychopy windows
-				if sys.platform == "linux2":
-					win_id = self.experiment.window.winHandle._window
-				elif sys.platform == "win32":
-					win_id = self.experiment.window.winHandle._hwnd
-
+				
+				if not self.experiment.window._isFullScr:
+					if sys.platform == "linux2":	
+						win_id = self.experiment.window.winHandle._window					
+					elif sys.platform == "win32":
+						win_id = self.experiment.window.winHandle._hwnd
+				else:
+					raise exceptions.runtime_error("It is not yet possible to play a movie in full screen mode using the psychopy backend")
+					
+		print "Rendering video to window: {0}".format(win_id)
+					
 		if sys.platform == "linux2": # for Linux using the X Server
 			self.player.set_xwindow(win_id)
 		elif sys.platform == "win32": # for Windows
@@ -212,7 +219,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 
 		# Send info to eyelink if it is found attached
 		if self.sendInfoToEyelink == "yes":
-			self.vlc_event_handler.event_attach(vlc.EventType.MediaPlayerTimeChanged, self.frameCheck)
+			self.vlc_event_handler.event_attach(vlc.EventType.MediaPlayerTimeChanged, self.startCheck)
 
 		# Pass thru vlc output to experiment window
 		self._set_display_window()
@@ -230,7 +237,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		# Report success
 		return True
 
-	def frameCheck(self,event):
+	def startCheck(self,event):
 		# Check for player init of the time and start frame counting
 		self.playbackStarted = True	
 		
@@ -253,7 +260,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 				self.experiment.eyelink.log("videoframe {0}".format(frame_no) )
 				self.experiment.eyelink.status_msg("videoframe {0}".format(frame_no))
 				
-	def handleEvent(self,event):		
+	def handleEvent(self,event=None):		
 		"""
 		Allows the user to insert custom code. Code is stored in the event_handler variable.
 
@@ -262,10 +269,12 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		"""
 		
 		frame_no = int((self.experiment.time() - self.startPlaybackTime)/self.frame_duration)
-		if type(event) == str:  #Psychopy event
-			key = event
-		else: 					#Pygame event
-			key = pygame.key.name(event.key)
+		
+		if not event is None:
+			if type(event) == str:  #Psychopy keypress event
+				key = event
+			else: 					#Pygame event
+				key = pygame.key.name(event.key)
 
 		continue_playback = True
 
@@ -378,7 +387,8 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 					if self.frame_duration > 0:
 						self.sendFrameInfoToEyelink()
 					else:
-						raise exceptions.runtime_error("Cannot send reliable info to the EyeLink as there is no info about the frame rate of this movie") 
+						#Maybe not necessary to raise an exception, but without reliable frame info the data sent to the EyeLink is virtually useless.
+						raise exceptions.runtime_error("Cannot send reliable info to the EyeLink as there is no info about the frame rate of this movie.") 
 					
 				#Sleep for rest of frame
 				if self.frame_duration > 0:
