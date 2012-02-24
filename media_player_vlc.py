@@ -63,10 +63,17 @@ import libopensesame.generic_response
 # Check if vlc is available in the python site-packages library, or otherwise in the local dir
 try:
 	import vlc
+	debug.msg("simple import vlc")
 except:
 	import imp
 	path = os.path.join(os.path.dirname(__file__), "vlc.py")
-	vlc = imp.load_source("vlc", path)
+	try:
+		vlc = imp.load_source("vlc", path)
+	except Exception as e:
+		raise Exception( \
+			"This plug-in requires that VLC player 1.X is installed in the default location. You can download VLC player for free from http://www.videolan.org/. Error: %s"
+			% e)
+	debug.msg("loading vlc from plugin folder")
 	
 	
 # Try to import Mediainfo for obtaining statistics about the media file (like framerate and such)
