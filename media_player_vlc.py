@@ -1,3 +1,5 @@
+#-*- coding:utf-8 -*-
+
 """
 This file is part of OpenSesame.
 
@@ -15,6 +17,9 @@ You should have received a copy of the GNU General Public License
 along with OpenSesame.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+__author__ = "Daniel Schreij"
+__license__ = "GPLv3"
+
 # Will be inherited by video_player
 from libopensesame import item
 
@@ -27,13 +32,29 @@ from libqtopensesame import pool_widget
 # Used to throw exceptions
 from libopensesame import exceptions
 
-#----------------------------------------------------------------------------------------------
-# <TODO> Only one of these should be selected depending on backend selection!
-#----------------------------------------------------------------------------------------------
-import pygame
-from pygame.locals import *
-#OR
-import psychopy
+# As of 0.26 the debug module provides a clean way to handle debugging output,
+# however to allow this plug-in to be used in earlier versions we can also
+# implement our own simple debug class.
+try:
+	from libopensesame import debug
+except:
+	class dummy_debug:
+		def msg(self, s, reason=None):
+			print "debug: %s" % s
+	debug = dummy_debug()
+
+# Try to import pygame, but intercept failures, because we may also use psychopy
+try:
+	import pygame
+	from pygame.locals import *
+except:
+	debug.msg("failed to import pygame")
+	
+# Try to import psychopy, but intercept failures, because we may also use pygame
+try:
+	import psychopy
+except:
+	debug.msg("failed to import psychopy")
 
 import os
 import sys
@@ -42,10 +63,17 @@ import libopensesame.generic_response
 # Check if vlc is available in the python site-packages library, or otherwise in the local dir
 try:
 	import vlc
+	debug.msg("simple import vlc")
 except:
 	import imp
 	path = os.path.join(os.path.dirname(__file__), "vlc.py")
-	vlc = imp.load_source("vlc", path)
+	try:
+		vlc = imp.load_source("vlc", path)
+	except Exception as e:
+		raise Exception( \
+			"This plug-in requires that VLC player 1.X is installed in the default location. You can download VLC player for free from http://www.videolan.org/. Error: %s"
+			% e)
+	debug.msg("loading vlc from plugin folder")
 	
 	
 # Try to import Mediainfo for obtaining statistics about the media file (like framerate and such)
@@ -60,8 +88,9 @@ try:
 		#If not fall back to version included in plugin dir by including this dir to the path
 		os.environ['PATH'] = os.path.dirname(__file__) + ';' + os.environ['PATH']					
 except:
-	print "WARNING: MediaInfo module not found. This plug-in runs better with pymediainfo installed (http://paltman.github.com/pymediainfo/)."
-
+	debug.msg( \
+		"MediaInfo module not found. This plug-in runs better with pymediainfo installed (http://paltman.github.com/pymediainfo/).", \
+		reason="warning")
 
 class media_player_vlc(item.item, libopensesame.generic_response.generic_response):
 
@@ -109,7 +138,9 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 			MediaInfo.parse("")
 			self.hasMediaInfo = True
 		except:
-			print "WARNING: MediaInfo CLI not found. Frame info might be unavailable."
+			debug.msg( \
+				"MediaInfo CLI not found. Frame info might be unavailable.",
+				reason="warning")
 			self.hasMediaInfo = False
 			
 		# The parent handles the rest of the construction
@@ -136,7 +167,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 				else:
 					raise exceptions.runtime_error("It is not yet possible to play a movie in full screen mode using the psychopy backend")
 					
-		print "Rendering video to window: {0}".format(win_id)
+		debug.msg("Rendering video to window: {0}".format(win_id))
 					
 		if sys.platform == "linux2": # for Linux using the X Server
 			self.player.set_xwindow(win_id)
@@ -177,15 +208,14 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		# temporary folder where the file pool has been placed
 		path = self.experiment.get_file(str(self.eval_text(self.get("video_src"))))
 
-		if self.experiment.debug:
-			print "media_player.prepare(): loading '%s'" % path
+		debug.msg("loading '%s'" % path)
 
 		# Open the video file
 		if not os.path.exists(path) or str(self.eval_text("video_src")).strip() == "":
 			raise exceptions.runtime_error("Video file '%s' was not found by video_player '%s' (or no video file was specified)." % (os.path.basename(path), self.name))
 
 		if self.hasMediaInfo:
-			print "Reading file media parameters"
+			debug.msg("Reading file media parameters")
 			mi = MediaInfo.parse(path)
 			try:
 				mi = MediaInfo.parse(path)
@@ -193,7 +223,8 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 					if track.track_type == "Video":		
 						self.framerate = float(track.frame_rate)
 						if self.framerate < 1:
-							print "WARNING: Frame rate info unavailable!"
+							debug.msg("Frame rate info unavailable!", \
+								reason="warning")
 						else:
 							self.frame_duration = 1000/self.framerate
 			except:
@@ -317,7 +348,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 
 			#Start movie playback
 			self.player.play()
-			print "Movie framerate: {0}".format(self.framerate)
+			debug.msg("Movie framerate: {0}".format(self.framerate))
 			
 			while self.player.get_state() == vlc.State.Opening:
 				pass #Wait until movie has opened
@@ -414,7 +445,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 		self.player.release()
 		self.vlcInstance.release()
 		self.media = None
-		print "Released VLC modules"
+		debug.msg("Released VLC modules")
 		if hasattr(self, "screen"):
 			self.screen = None
 
