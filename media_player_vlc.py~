@@ -365,7 +365,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 					# Process all events
 
 					#Pygame event (legacy and opengl)
-					if self.get("keyboard_backend") in ["legacy","xpyriment"] or self.get("mouse_backend") in ["legacy","xpyriment"] :
+					if self.get("keyboard_backend") in ["legacy","xpyriment"] or self.get("mouse_backend") in ["legacy","opengl"] :
 						for event in pygame.event.get():
 							if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
 								if self._event_handler != None:
