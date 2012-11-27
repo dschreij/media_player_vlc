@@ -325,7 +325,7 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 				self.experiment.eyelink.status_msg("videoframe {0}".format( \
 					frame_no))
 				
-	def handleEvent(self,event=None):
+	def handleEvent(self, event=None):
 		
 		"""
 		Allows the user to insert custom code. Code is stored in the event_handler
@@ -333,6 +333,9 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 
 		Arguments:
 		event -- a dummy argument passed by the signal handler
+		
+		Returns:
+		True if playback should continue, False otherwise
 		"""
 		
 		if self.frame_duration == 0:
@@ -341,11 +344,10 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 			frame_no = int((self.experiment.time() - self.startPlaybackTime) \
 				/ self.frame_duration)
 		
-		if not event is None:
-			if type(event) == str:  #Psychopy keypress event
-				key = event
-			else: 					#Pygame event
-				key = pygame.key.name(event.key)
+		if event is not None:
+			key = pygame.key.name(event.key)
+		else:
+			key = None
 
 		continue_playback = True
 
@@ -360,15 +362,11 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 
 		return continue_playback
 		
-
 	def run(self):
 		
 		"""
 		Starts the playback of the video file. You can specify an optional
-		callable object to handle events between frames (like keypresses). This
-		function needs to return a boolean, because it determines if playback is
-		continued or stopped. If no callable object is provided playback will
-		stop when the ESC key is pressed.
+		callable object to handle events between frames (like keypresses).
 
 		Returns:
 		True on success, False on failure
@@ -385,125 +383,94 @@ class media_player_vlc(item.item, libopensesame.generic_response.generic_respons
 				self.experiment.start_response_interval
 		self.experiment.response = None
 
-		if self.file_loaded:
-			self.playing = True
-
-			#Lock the surface for VLC input when backend is legacy or opengl
-			if hasattr(self,"screen"):
-				self.screen.lock()
-
-			#Start movie playback
-			self.player.play()
-			debug.msg("Movie framerate: {0}".format(self.framerate))
+		if not self.file_loaded:
+			raise exceptions.runtime_error("No video loaded")
 			
-			while self.player.get_state() == vlc.State.Opening:
-				pass #Wait until movie has opened
+		#Lock the surface for VLC input when backend is legacy or opengl
+		if hasattr(self,"screen"):
+			self.screen.lock()
+
+		#Start movie playback
+		self.player.play()
+		debug.msg("Movie framerate: {0}".format(self.framerate))
+		
+		while self.player.get_state() == vlc.State.Opening:
+			pass #Wait until movie has opened
+		
+		self.playing = True
+		while self.player.get_state() != vlc.State.Ended and self.playing:		
+			starttime = self.experiment.time()
 			
-			while self.player.get_state() != vlc.State.Ended and self.playing:		
-				starttime = self.experiment.time()
+			if self.playbackStarted and self.startPlaybackTime == 0:
+				self.startPlaybackTime = self.experiment.time()
 				
-				if self.playbackStarted and self.startPlaybackTime == 0:
-					self.startPlaybackTime = self.experiment.time()
+			if self._event_handler_always:
+				self.playing = self.handleEvent()
+			else:
+				# Process pygame event (legacy and xpyriment)
+				for event in pygame.event.get():
+					if event.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
+						if self._event_handler != None:
+							self.playing = self.handleEvent(event)
+						elif event.type == pygame.KEYDOWN and self.duration == \
+							"keypress":
+							self.playing = False
+							self.experiment.response = event.unicode
+							self.experiment.end_response_interval = \
+								pygame.time.get_ticks()
+						elif event.type == pygame.MOUSEBUTTONDOWN and \
+							self.duration == "mouseclick":
+							self.playing = False
+							self.experiment.response = event.button
+							self.experiment.end_response_interval = \
+								pygame.time.get_ticks()
+
+						# Catch escape presses
+						if event.type == pygame.KEYDOWN and event.key \
+							== pygame.K_ESCAPE:
+							raise exceptions.runtime_error( \
+								"The escape key was pressed")
+
+					# Check if max duration has been set, and exit if exceeded
+					if type(self.duration) == int:
+						if pygame.time.get_ticks() - startTime > \
+							(self.duration*1000):
+							self.playing = False
+
+					# Check if max duration has been set, and exit if exceeded
+					if type(self.duration) == int:
+						if self.timer.getTime() - startTime > self.duration:
+							self.playing = False
 				
-				if self._event_handler_always:
-					self.playing = self.handleEvent()
-				else:
-					# Process all events
-
-					#Pygame event (legacy and opengl)
-					if self.get("keyboard_backend") in ["legacy","xpyriment"] \
-						or self.get("mouse_backend") in ["legacy","xpyriment"] :
-						for event in pygame.event.get():
-							if event.type == pygame.KEYDOWN or event.type == \
-								pygame.MOUSEBUTTONDOWN:
-								if self._event_handler != None:
-									self.playing = self.handleEvent(event)
-								elif event.type == pygame.KEYDOWN and \
-									self.duration == "keypress":
-									self.playing = False
-									self.experiment.response = pygame.key.name( \
-										event.key)
-									self.experiment.end_response_interval = \
-										pygame.time.get_ticks()
-								elif event.type == pygame.MOUSEBUTTONDOWN and \
-									self.duration == "mouseclick":
-									self.playing = False
-									self.experiment.response = event.button
-									self.experiment.end_response_interval = \
-										pygame.time.get_ticks()
-
-								# Catch escape presses
-								if event.type == pygame.KEYDOWN and event.key \
-									== pygame.K_ESCAPE:
-									raise exceptions.runtime_error( \
-										"The escape key was pressed")
-
-						# Check if max duration has been set, and exit if exceeded
-						if type(self.duration) == int:
-							if pygame.time.get_ticks() - startTime > \
-								(self.duration*1000):
-								self.playing = False
-
-					# Psychopy event handling
-					elif self.get("keyboard_backend") == "psycho" or self.get( \
-						"mouse_backend") == "psycho":
-						for key in psychopy.event.getKeys():
-							if self._event_handler != None:
-								self.playing = self.handleEvent(key)
-							elif self.duration == "keypress":
-								self.playing = False
-								self.experiment.response = key
-								self.experiment.end_response_interval = \
-									self.experiment.time()
-
-							# No equivalent for mouse button presses yet for psychopy
-							# elif event.type == pygame.MOUSEBUTTONDOWN and self.duration == "mouseclick":
-								# self.playing = False
-								# self.experiment.response = event.button
-								# self.experiment.end_response_interval = pygame.time.get_ticks()
-
-							# Catch escape presses
-							if key == "escape":
-								raise exceptions.runtime_error( \
-									"The escape key was pressed")
-
-						# Check if max duration has been set, and exit if exceeded
-						if type(self.duration) == int:
-							if self.timer.getTime() - startTime > self.duration:
-								self.playing = False
-					
-				#Send info to the eyelink if applicable
-				if self.sendInfoToEyelink == "yes" and self.playbackStarted:
-					if self.frame_duration > 0:
-						self.sendFrameInfoToEyelink()
-					else:
-						# Maybe not necessary to raise an exception, but without
-						# reliable frame info the data sent to the EyeLink is
-						# virtually useless.
-						raise exceptions.runtime_error( \
-							"Cannot send reliable info to the EyeLink as there is no info about the frame rate of this movie.") 
-					
-				#Sleep for rest of frame
+			#Send info to the eyelink if applicable
+			if self.sendInfoToEyelink == "yes" and self.playbackStarted:
 				if self.frame_duration > 0:
-					sleeptime = int(self.frame_duration - \
-						(self.experiment.time() - starttime))
-					if sleeptime > 0:
-						self.experiment.sleep(sleeptime) 
+					self.sendFrameInfoToEyelink()
+				else:
+					# Maybe not necessary to raise an exception, but without
+					# reliable frame info the data sent to the EyeLink is
+					# virtually useless.
+					raise exceptions.runtime_error( \
+						"Cannot send reliable info to the EyeLink as there is no info about the frame rate of this movie.") 
+				
+			#Sleep for rest of frame
+			if self.frame_duration > 0:
+				sleeptime = int(self.frame_duration - \
+					(self.experiment.time() - starttime))
+				if sleeptime > 0:
+					self.experiment.sleep(sleeptime) 
 						
 
-			#Stop playback
-			self.player.stop()
+		#Stop playback
+		self.player.stop()
 
-			#Free the surface
-			if hasattr(self,"screen"):
-				self.screen.unlock()
+		#Free the surface
+		if hasattr(self,"screen"):
+			self.screen.unlock()
 
-			libopensesame.generic_response.generic_response.\
-				response_bookkeeping(self)
-			return True
-		else:
-			raise exceptions.runtime_error("No video loaded")
-			return False
+		libopensesame.generic_response.generic_response.\
+			response_bookkeeping(self)
+		return True
 
 	def closePlayer(self):
 		self.player.release()
