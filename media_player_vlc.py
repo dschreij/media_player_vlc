@@ -20,12 +20,45 @@ along with OpenSesame.  If not, see <http://www.gnu.org/licenses/>.
 __author__ = "Daniel Schreij"
 __license__ = "GPLv3"
 
-from libopensesame import item, exceptions, debug, generic_response
-from libqtopensesame import qtplugin, pool_widget
-import pygame
-from pygame.locals import *
+# Will be inherited by video_player
+from libopensesame import item
+
+# Will be inherited by qtvideo_player
+from libqtopensesame import qtplugin
+
+# Used to access the file pool
+from libqtopensesame import pool_widget
+
+# Used to throw exceptions
+from libopensesame import exceptions
+
+# As of 0.26 the debug module provides a clean way to handle debugging output,
+# however to allow this plug-in to be used in earlier versions we can also
+# implement our own simple debug class.
+try:
+	from libopensesame import debug
+except:
+	class dummy_debug:
+		def msg(self, s, reason=None):
+			print "debug: %s" % s
+	debug = dummy_debug()
+
+# Try to import pygame, but intercept failures, because we may also use psychopy
+try:
+	import pygame
+	from pygame.locals import *
+except:
+	debug.msg("failed to import pygame")
+	
+# Try to import psychopy, but intercept failures, because we may also use pygame
+try:
+	import psychopy
+except:
+	debug.msg("failed to import psychopy")
+
 import os
 import sys
+import libopensesame.generic_response
 
 # Check if vlc is available in the python site-packages library, or otherwise in
 # the local dir
@@ -63,7 +96,7 @@ except:
 		"MediaInfo module not found. This plug-in runs better with pymediainfo installed (http://paltman.github.com/pymediainfo/).", \
 		reason="warning")
 
-class media_player_vlc(item.item, generic_response.generic_response):
+class media_player_vlc(item.item, libopensesame.generic_response.generic_response):
 
 	"""
 	The media_player plug-in offers advanced video playback functionality in
@@ -86,6 +119,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 
 		# The version of the plug-in
 		self.version = 0.10
+		self.experiment = experiment
 
 		self.file_loaded = False
 		self.paused = False
@@ -132,9 +166,19 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			backend = self.get("canvas_backend")
 			if backend in ["legacy", "xpyriment"]:
 				win_id = pygame.display.get_wm_info()['window']
-			else:
-				raise exceptions.runtime_error( \
-					"Only the legacy and xpyriment back-ends are supported. Sorry!")
+			elif backend == "psycho":
+				# For windows and linux for now. Do not yet know correct Mac OS X
+				# window references. Does noet seem to work yet for full screen
+				# psychopy windows
+				
+				if not self.experiment.window._isFullScr:
+					if sys.platform == "linux2":	
+						win_id = self.experiment.window.winHandle._window					
+					elif sys.platform == "win32":
+						win_id = self.experiment.window.winHandle._hwnd
+				else:
+					raise exceptions.runtime_error( \
+						"It is not yet possible to play a movie in full screen mode using the psychopy backend")
 					
 		debug.msg("Rendering video to window: {0}".format(win_id))
 					
@@ -343,11 +387,20 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		if not self.file_loaded:
 			raise exceptions.runtime_error("No video loaded")
 			
+		
+		#Reinit display surface for movie playback
+		if self.experiment.fullscreen and self.has("canvas_backend"):
+			backend = self.get("canvas_backend")
+			if backend in ["legacy"]:
+				sfc = pygame.display.get_surface()
+				flags = sfc.get_flags()
+				pygame.display.set_mode(sfc.get_size(),OPENGL|FULLSCREEN)
+			
 		#Lock the surface for VLC input when backend is legacy or opengl
 		if hasattr(self,"screen"):
-			self.screen.lock()
-
-		#Start movie playback
+			self.screen.lock()	
+		
+		#Start movie playback		
 		self.player.play()
 		debug.msg("Movie framerate: {0}".format(self.framerate))
 		
@@ -372,7 +425,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 						elif event.type == pygame.KEYDOWN and self.duration == \
 							"keypress":
 							self.playing = False
-							self.experiment.response = pygame.key.name(event.key)
+							self.experiment.response = event.unicode
 							self.experiment.end_response_interval = \
 								pygame.time.get_ticks()
 						elif event.type == pygame.MOUSEBUTTONDOWN and \
@@ -424,8 +477,15 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		#Free the surface
 		if hasattr(self,"screen"):
 			self.screen.unlock()
-
-		generic_response.generic_response.response_bookkeeping(self)
+		
+		# Restore display surface to the state of before movie playback
+		if self.experiment.fullscreen and self.has("canvas_backend"):
+			backend = self.get("canvas_backend")
+			if backend in ["legacy"]:				
+				pygame.display.set_mode(sfc.get_size(),flags)
+				self.experiment.surface = pygame.display.get_surface()				
+		
+		libopensesame.generic_response.generic_response.response_bookkeeping(self)
 		return True
 
 	def closePlayer(self):
@@ -437,7 +497,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			self.screen = None
 
 	def var_info(self):
-		return generic_response.generic_response.var_info(self)
+		return libopensesame.generic_response.generic_response.var_info(self)
 
 class qtmedia_player_vlc(media_player_vlc, qtplugin.qtplugin):
 
@@ -549,10 +609,7 @@ class qtmedia_player_vlc(media_player_vlc, qtplugin.qtplugin):
 
 		# Let the parent handle everything
 		qtplugin.qtplugin.edit_widget(self)
-		
-		self.auto_line_edit['duration'].setEnabled(self.auto_combobox[ \
-			'event_handler_trigger'].currentIndex() == 0)
-		
+
 		# Unlock
 		self.lock = False
 
