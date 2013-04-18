@@ -99,7 +99,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		self.event_handler_trigger = "on keypress"
 		self.vlc_event_handler = None
 
-		self.vlcInstance = vlc.Instance()
+		self.vlcInstance = vlc.Instance("--no-video-title-show")
 		self.player = self.vlcInstance.media_player_new()
 		self.media = None
 		self.framerate = 0
