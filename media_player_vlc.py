@@ -85,11 +85,12 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		"""
 
 		# The version of the plug-in
-		self.version = 0.10
+		self.version = 1.0
 
 		self.file_loaded = False
 		self.paused = False
 
+		self.resizeVideo = "yes"
 		self.item_type = "media_player_vlc"
 		self.description = "Plays a video from file"
 		self.duration = "keypress"
@@ -211,6 +212,10 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			self.player.set_media(self.media)
 			self.media.parse()
 			self.file_loaded = True
+			
+			# Determines if cleanup is necessary later
+			# If vlc memory is freed, set to True.			
+			self.released = False	
 		except:
 			raise exceptions.runtime_error( \
 				"Error loading media file. Unsupported format?")
@@ -222,7 +227,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			self.player.audio_set_mute(False)
 			# Solves bug in vlc bindings: unmute sets sound status to unmuted but
 			# sets volume to 0
-			self.player.audio_set_volume(50)   
+			self.player.audio_set_volume(75)   
 
 		# create reference to vlc event handler and set up event handling
 		self.vlc_event_handler = self.player.event_manager()
@@ -235,11 +240,11 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		# Pass thru vlc output to experiment window
 		self._set_display_window()
 
-		if self.get("canvas_backend") in ["legacy","opengl"]:
-			self.screen = self.experiment.surface
-
 		# Indicate function for clean up that is run after the experiment finishes
 		self.experiment.cleanup_functions.append(self.closePlayer)
+		
+		if self.resizeVideo == "no":		
+			self.player.video_set_scale(1.0)
 		
 		# Reinitialize variables
 		self.playbackStarted = False
@@ -343,10 +348,6 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		if not self.file_loaded:
 			raise exceptions.runtime_error("No video loaded")
 			
-		#Lock the surface for VLC input when backend is legacy or opengl
-		if hasattr(self,"screen"):
-			self.screen.lock()
-
 		#Start movie playback
 		self.player.play()
 		debug.msg("Movie framerate: {0}".format(self.framerate))
@@ -420,21 +421,21 @@ class media_player_vlc(item.item, generic_response.generic_response):
 
 		#Stop playback
 		self.player.stop()
+		
+		#Clean up player memory
+		self.closePlayer()
 
-		#Free the surface
-		if hasattr(self,"screen"):
-			self.screen.unlock()
 
 		generic_response.generic_response.response_bookkeeping(self)
 		return True
 
 	def closePlayer(self):
-		self.player.release()
-		self.vlcInstance.release()
-		self.media = None
-		debug.msg("Released VLC modules")
-		if hasattr(self, "screen"):
-			self.screen = None
+		if not self.released:
+			self.player.release()
+			self.vlcInstance.release()
+			self.media = None
+			debug.msg("Released VLC modules")
+			self.released = True
 
 	def var_info(self):
 		return generic_response.generic_response.var_info(self)
@@ -482,6 +483,9 @@ class qtmedia_player_vlc(media_player_vlc, qtplugin.qtplugin):
 		self.add_combobox_control("playaudio", "Play audio", ["yes", "no"], \
 			tooltip= \
 			"Specifies if the video has to be played with audio, or in silence")
+		self.add_combobox_control("resizeVideo", "Fit video to screen", ["yes", "no"], \
+			tooltip= \
+			"Specifies if the video has to be stretched over the screen width")
 		self.add_combobox_control("sendInfoToEyelink", \
 			"Send frame no. to EyeLink", ["yes", "no"], tooltip= \
 			"If an eyelink is connected, then it will receive the number of each displayed frame as a msg event.\r\nYou can also see this information in the eyelink's status message box.\r\nThis option requires the installation of the OpenSesame EyeLink plugin and an established connection to the EyeLink.")
