@@ -20,7 +20,8 @@ along with OpenSesame.  If not, see <http://www.gnu.org/licenses/>.
 __author__ = "Daniel Schreij"
 __license__ = "GPLv3"
 
-from libopensesame import item, exceptions, debug, generic_response
+from libopensesame import item, debug, generic_response
+from libopensesame.exceptions import osexception
 from libqtopensesame import qtplugin, pool_widget
 import pygame
 from pygame.locals import *
@@ -134,7 +135,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			if backend in ["legacy", "xpyriment"]:
 				win_id = pygame.display.get_wm_info()['window']
 			else:
-				raise exceptions.runtime_error( \
+				raise osexception( \
 					"Only the legacy and xpyriment back-ends are supported. Sorry!")
 					
 		debug.msg("Rendering video to window: {0}".format(win_id))
@@ -162,7 +163,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		# Give a sensible error message if the proper back-end has not been
 		# selected
 		if not self.has("canvas_backend"):
-			raise exceptions.runtime_error("Backend not initialized!")
+			raise osexception("Backend not initialized!")
 
 		# Byte-compile the event handling code (if any)
 		if self.event_handler.strip() != "":
@@ -186,7 +187,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		# Open the video file
 		if not os.path.exists(path) or str(self.eval_text("video_src")).strip() \
 			== "":
-			raise exceptions.runtime_error( \
+			raise osexception( \
 				"Video file '%s' was not found by video_player '%s' (or no video file was specified)." \
 				% (os.path.basename(path), self.name))
 
@@ -204,7 +205,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 						else:
 							self.frame_duration = 1000/self.framerate
 			except:
-				raise exceptions.runtime_error( \
+				raise osexception( \
 					"Error parsing media file. Possibly the video file is corrupt")
 			
 		try:
@@ -217,7 +218,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			# If vlc memory is freed, set to True.			
 			self.released = False	
 		except:
-			raise exceptions.runtime_error( \
+			raise osexception( \
 				"Error loading media file. Unsupported format?")
 
 		# If playaudio is set to no, tell vlc to mute the movie
@@ -316,7 +317,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		try:
 			exec(self._event_handler)
 		except Exception as e:
-			raise exceptions.runtime_error( \
+			raise osexception( \
 				"Error while executing event handling code: %s" % e)
 
 		if type(continue_playback) != bool:
@@ -346,7 +347,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		self.experiment.response = None
 
 		if not self.file_loaded:
-			raise exceptions.runtime_error("No video loaded")
+			raise osexception("No video loaded")
 			
 		#Start movie playback
 		self.player.play()
@@ -386,7 +387,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 						# Catch escape presses
 						if event.type == pygame.KEYDOWN and event.key \
 							== pygame.K_ESCAPE:
-							raise exceptions.runtime_error( \
+							raise osexception( \
 								"The escape key was pressed")
 
 					# Check if max duration has been set, and exit if exceeded
@@ -408,7 +409,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 					# Maybe not necessary to raise an exception, but without
 					# reliable frame info the data sent to the EyeLink is
 					# virtually useless.
-					raise exceptions.runtime_error( \
+					raise osexception( \
 						"Cannot send reliable info to the EyeLink as there is no info about the frame rate of this movie.") 
 				
 			#Sleep for rest of frame
