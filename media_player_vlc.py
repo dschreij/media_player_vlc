@@ -20,7 +20,8 @@ along with OpenSesame.  If not, see <http://www.gnu.org/licenses/>.
 __author__ = "Daniel Schreij"
 __license__ = "GPLv3"
 
-from libopensesame import item, exceptions, debug, generic_response
+from libopensesame import item, debug, generic_response
+from libopensesame.exceptions import osexception
 from libqtopensesame import qtplugin, pool_widget
 import pygame
 from pygame.locals import *
@@ -85,11 +86,12 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		"""
 
 		# The version of the plug-in
-		self.version = 0.10
+		self.version = 1.0
 
 		self.file_loaded = False
 		self.paused = False
 
+		self.resizeVideo = "yes"
 		self.item_type = "media_player_vlc"
 		self.description = "Plays a video from file"
 		self.duration = "keypress"
@@ -133,7 +135,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			if backend in ["legacy", "xpyriment"]:
 				win_id = pygame.display.get_wm_info()['window']
 			else:
-				raise exceptions.runtime_error( \
+				raise osexception( \
 					"Only the legacy and xpyriment back-ends are supported. Sorry!")
 					
 		debug.msg("Rendering video to window: {0}".format(win_id))
@@ -161,7 +163,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		# Give a sensible error message if the proper back-end has not been
 		# selected
 		if not self.has("canvas_backend"):
-			raise exceptions.runtime_error("Backend not initialized!")
+			raise osexception("Backend not initialized!")
 
 		# Byte-compile the event handling code (if any)
 		if self.event_handler.strip() != "":
@@ -185,7 +187,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		# Open the video file
 		if not os.path.exists(path) or str(self.eval_text("video_src")).strip() \
 			== "":
-			raise exceptions.runtime_error( \
+			raise osexception( \
 				"Video file '%s' was not found by video_player '%s' (or no video file was specified)." \
 				% (os.path.basename(path), self.name))
 
@@ -203,7 +205,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 						else:
 							self.frame_duration = 1000/self.framerate
 			except:
-				raise exceptions.runtime_error( \
+				raise osexception( \
 					"Error parsing media file. Possibly the video file is corrupt")
 			
 		try:
@@ -211,8 +213,12 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			self.player.set_media(self.media)
 			self.media.parse()
 			self.file_loaded = True
+			
+			# Determines if cleanup is necessary later
+			# If vlc memory is freed, set to True.			
+			self.released = False	
 		except:
-			raise exceptions.runtime_error( \
+			raise osexception( \
 				"Error loading media file. Unsupported format?")
 
 		# If playaudio is set to no, tell vlc to mute the movie
@@ -222,7 +228,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			self.player.audio_set_mute(False)
 			# Solves bug in vlc bindings: unmute sets sound status to unmuted but
 			# sets volume to 0
-			self.player.audio_set_volume(50)   
+			self.player.audio_set_volume(75)   
 
 		# create reference to vlc event handler and set up event handling
 		self.vlc_event_handler = self.player.event_manager()
@@ -235,11 +241,11 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		# Pass thru vlc output to experiment window
 		self._set_display_window()
 
-		if self.get("canvas_backend") in ["legacy","opengl"]:
-			self.screen = self.experiment.surface
-
 		# Indicate function for clean up that is run after the experiment finishes
 		self.experiment.cleanup_functions.append(self.closePlayer)
+		
+		if self.resizeVideo == "no":		
+			self.player.video_set_scale(1.0)
 		
 		# Reinitialize variables
 		self.playbackStarted = False
@@ -311,7 +317,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		try:
 			exec(self._event_handler)
 		except Exception as e:
-			raise exceptions.runtime_error( \
+			raise osexception( \
 				"Error while executing event handling code: %s" % e)
 
 		if type(continue_playback) != bool:
@@ -341,12 +347,8 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		self.experiment.response = None
 
 		if not self.file_loaded:
-			raise exceptions.runtime_error("No video loaded")
+			raise osexception("No video loaded")
 			
-		#Lock the surface for VLC input when backend is legacy or opengl
-		if hasattr(self,"screen"):
-			self.screen.lock()
-
 		#Start movie playback
 		self.player.play()
 		debug.msg("Movie framerate: {0}".format(self.framerate))
@@ -385,7 +387,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 						# Catch escape presses
 						if event.type == pygame.KEYDOWN and event.key \
 							== pygame.K_ESCAPE:
-							raise exceptions.runtime_error( \
+							raise osexception( \
 								"The escape key was pressed")
 
 					# Check if max duration has been set, and exit if exceeded
@@ -407,7 +409,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 					# Maybe not necessary to raise an exception, but without
 					# reliable frame info the data sent to the EyeLink is
 					# virtually useless.
-					raise exceptions.runtime_error( \
+					raise osexception( \
 						"Cannot send reliable info to the EyeLink as there is no info about the frame rate of this movie.") 
 				
 			#Sleep for rest of frame
@@ -420,21 +422,21 @@ class media_player_vlc(item.item, generic_response.generic_response):
 
 		#Stop playback
 		self.player.stop()
+		
+		#Clean up player memory
+		self.closePlayer()
 
-		#Free the surface
-		if hasattr(self,"screen"):
-			self.screen.unlock()
 
 		generic_response.generic_response.response_bookkeeping(self)
 		return True
 
 	def closePlayer(self):
-		self.player.release()
-		self.vlcInstance.release()
-		self.media = None
-		debug.msg("Released VLC modules")
-		if hasattr(self, "screen"):
-			self.screen = None
+		if not self.released:
+			self.player.release()
+			self.vlcInstance.release()
+			self.media = None
+			debug.msg("Released VLC modules")
+			self.released = True
 
 	def var_info(self):
 		return generic_response.generic_response.var_info(self)
@@ -482,6 +484,9 @@ class qtmedia_player_vlc(media_player_vlc, qtplugin.qtplugin):
 		self.add_combobox_control("playaudio", "Play audio", ["yes", "no"], \
 			tooltip= \
 			"Specifies if the video has to be played with audio, or in silence")
+		self.add_combobox_control("resizeVideo", "Fit video to screen", ["yes", "no"], \
+			tooltip= \
+			"Specifies if the video has to be stretched over the screen width")
 		self.add_combobox_control("sendInfoToEyelink", \
 			"Send frame no. to EyeLink", ["yes", "no"], tooltip= \
 			"If an eyelink is connected, then it will receive the number of each displayed frame as a msg event.\r\nYou can also see this information in the eyelink's status message box.\r\nThis option requires the installation of the OpenSesame EyeLink plugin and an established connection to the EyeLink.")
