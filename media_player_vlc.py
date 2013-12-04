@@ -40,7 +40,7 @@ except:
 		vlc = imp.load_source("vlc", path)
 	except Exception as e:
 		raise Exception( \
-			"This plug-in requires that VLC player 1.X is installed in the default location. You can download VLC player for free from http://www.videolan.org/. Error: %s"
+			"This plug-in requires that VLC player 2.X is installed in the default location. You can download VLC player for free from http://www.videolan.org/. Error: %s"
 			% e)
 	debug.msg("loading vlc from plugin folder")
 	
@@ -101,8 +101,6 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		self.event_handler_trigger = "on keypress"
 		self.vlc_event_handler = None
 
-		self.vlcInstance = vlc.Instance("--no-video-title-show")
-		self.player = self.vlcInstance.media_player_new()
 		self.media = None
 		self.framerate = 0
 		self.frame_duration = 0
@@ -207,6 +205,9 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			except:
 				raise osexception( \
 					"Error parsing media file. Possibly the video file is corrupt")
+		
+		self.vlcInstance = vlc.Instance("--no-video-title-show")
+		self.player = self.vlcInstance.media_player_new()
 			
 		try:
 			self.media = self.vlcInstance.media_new(path)
