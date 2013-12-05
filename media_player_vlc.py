@@ -172,7 +172,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			self._event_handler = None
 
 		# Determine when the event handler should be called
-		if self.event_handler_trigger == "on keypress":
+		if self.event_handler_trigger == u"on keypress":
 			self._event_handler_always = False
 		else:
 			self._event_handler_always = True
@@ -310,7 +310,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			frame_no = int((self.experiment.time() - self.startPlaybackTime) \
 				/ self.frame_duration)
 		
-		if event is not None:
+		if event is not None and event.type == pygame.KEYDOWN:
 			key = pygame.key.name(event.key)
 		else:
 			key = None
@@ -375,7 +375,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 						if self._event_handler != None:
 							self.playing = self.handleEvent(event)
 						elif event.type == pygame.KEYDOWN and self.duration == \
-							"keypress":
+							u"keypress":
 							self.playing = False
 							self.experiment.response = pygame.key.name(event.key)
 							self.experiment.end_response_interval = \
@@ -473,4 +473,3 @@ class qtmedia_player_vlc(media_player_vlc, qtautoplugin):
 		# event handler is called or not.
 		self.line_edit_duration.setEnabled( \
 			self.combobox_event_handler_trigger.currentIndex() == 0)
-		
