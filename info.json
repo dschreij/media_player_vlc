@@ -1,0 +1,74 @@
+{
+	"version"		: "1.0.1",
+	"author"		: "Daniel Schreij",
+	"url"			: "https://github.com/dschreij/media_player_vlc",
+	"category"		: "Visual stimuli",
+	"controls" : [
+		{
+			"type"		: "filepool",
+			"var"		: "video_src",
+			"label"		: "Video file",
+			"tooltip"	: "A video file"
+		},
+		{
+			"type"		: "combobox",
+			"var"		: "playaudio",
+			"label"		: "Play audio",
+			"options"	: [
+				"yes",
+				"no"
+				],
+			"tooltip"	: "Specifies if the video has to be played with audio, or in silence"
+		},
+		{
+			"type"		: "combobox",
+			"var"		: "resizeVideo",
+			"label"		: "Fit video to screen",
+			"options"	: [
+				"yes",
+				"no"
+				],
+			"tooltip"	: "Specifies if the video has to be stretched over the screen width"
+		},
+		{
+			"type"		: "combobox",
+			"var"		: "sendInfoToEyelink",
+			"label"		: "Send frame no. to EyeLink",
+			"options"	: [
+				"yes",
+				"no"
+				],
+			"tooltip"	: "If an eyelink is connected, then it will receive the number of each displayed frame as a msg event.\r\nYou can also see this information in the eyelink's status message box.\r\nThis option requires the installation of the OpenSesame EyeLink plugin and an established connection to the EyeLink."
+		},
+		{
+			"type"		: "combobox",
+			"var"		: "event_handler_trigger",
+			"name"		: "combobox_event_handler_trigger",
+			"label"		: "Call custom Python code",
+			"options"	: [
+				"on keypress",
+				"after every frame"
+				],
+			"tooltip"	: "Determine when the custom event handling code is called."
+		},
+		{
+			"type"		: "line_edit",
+			"var"		: "duration",
+			"name"		: "line_edit_duration",
+			"label"		: "Duration",
+			"tooltip"	: "Expecting a value in seconds, 'keypress' or 'mouseclick'"
+		},
+		{
+			"type"		: "editor",
+			"var"		: "event_handler",
+			"label"		: "Custom Python code for handling keypress and mouseclick events (See Help for more information)",
+			"syntax"	: true,
+			"tooltip"	: "Specify how you would like to handle events like mouse clicks or keypresses. When set, this overrides the Duration attribute"
+		},
+		{
+			"type"		: "text",
+			"label"		: "<small><b>Media Player VLC OpenSesame Plugin 1.0.1, Copyright (2010-2013) Daniel Schreij</b></small>"
+		}
+	]
+}
+

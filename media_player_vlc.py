@@ -23,6 +23,7 @@ __license__ = "GPLv3"
 from libopensesame import item, debug, generic_response
 from libopensesame.exceptions import osexception
 from libqtopensesame import qtplugin, pool_widget
+from libqtopensesame.items.qtautoplugin import qtautoplugin
 import pygame
 from pygame.locals import *
 import os
@@ -86,19 +87,19 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		"""
 
 		# The version of the plug-in
-		self.version = 1.0
+		self.version = u'1.0.1'
 
 		self.file_loaded = False
 		self.paused = False
 
-		self.resizeVideo = "yes"
-		self.item_type = "media_player_vlc"
-		self.description = "Plays a video from file"
-		self.duration = "keypress"
-		self.playaudio = "yes"
-		self.sendInfoToEyelink = "no"
-		self.event_handler = ""
-		self.event_handler_trigger = "on keypress"
+		self.resizeVideo = u"yes"
+		self.item_type = u"media_player_vlc"
+		self.description = u"Plays a video from file"
+		self.duration = u"keypress"
+		self.playaudio = u"yes"
+		self.sendInfoToEyelink = u"no"
+		self.event_handler = u""
+		self.event_handler_trigger = u"on keypress"
 		self.vlc_event_handler = None
 
 		self.media = None
@@ -110,12 +111,12 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		
 		#See if MediaInfo functions are available
 		try:
-			MediaInfo.parse("")
+			MediaInfo.parse(u"")
 			self.hasMediaInfo = True
 		except:
 			debug.msg( \
-				"MediaInfo CLI not found. Frame info might be unavailable.",
-				reason="warning")
+				u"MediaInfo CLI not found. Frame info might be unavailable.",
+				reason=u"warning")
 			self.hasMediaInfo = False
 			
 		# The parent handles the rest of the construction
@@ -128,21 +129,21 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		backend used
 		"""
 		
-		if self.has("canvas_backend"):
-			backend = self.get("canvas_backend")
-			if backend in ["legacy", "xpyriment"]:
-				win_id = pygame.display.get_wm_info()['window']
+		if self.has(u"canvas_backend"):
+			backend = self.get(u"canvas_backend")
+			if backend in [u"legacy", u"xpyriment"]:
+				win_id = pygame.display.get_wm_info()[u'window']
 			else:
 				raise osexception( \
-					"Only the legacy and xpyriment back-ends are supported. Sorry!")
+					u"Only the legacy and xpyriment back-ends are supported. Sorry!")
 					
-		debug.msg("Rendering video to window: {0}".format(win_id))
+		debug.msg(u"Rendering video to window: {0}".format(win_id))
 					
-		if sys.platform == "linux2": # for Linux using the X Server
+		if sys.platform == u"linux2": # for Linux using the X Server
 			self.player.set_xwindow(win_id)
-		elif sys.platform == "win32": # for Windows
+		elif sys.platform == u"win32": # for Windows
 			self.player.set_hwnd(win_id)
-		elif sys.platform == "darwin": # for MacOS
+		elif sys.platform == u"darwin": # for MacOS
 			self.player.set_agl(win_id)
 
 
@@ -160,17 +161,18 @@ class media_player_vlc(item.item, generic_response.generic_response):
 
 		# Give a sensible error message if the proper back-end has not been
 		# selected
-		if not self.has("canvas_backend"):
-			raise osexception("Backend not initialized!")
+		if not self.has(u"canvas_backend"):
+			raise osexception(u"Backend not initialized!")
 
 		# Byte-compile the event handling code (if any)
 		if self.event_handler.strip() != "":
-			self._event_handler = compile(self.event_handler, "<string>", "exec")
+			self._event_handler = compile(self.event_handler, u"<string>", \
+				u"exec")
 		else:
 			self._event_handler = None
 
 		# Determine when the event handler should be called
-		if self.event_handler_trigger == "on keypress":
+		if self.event_handler_trigger == u"on keypress":
 			self._event_handler_always = False
 		else:
 			self._event_handler_always = True
@@ -178,35 +180,35 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		# Find the full path to the video file. This will point to some
 		# temporary folder where the file pool has been placed
 		path = self.experiment.get_file(str(self.eval_text(self.get( \
-			"video_src"))))
+			u"video_src"))))
 
-		debug.msg("loading '%s'" % path)
+		debug.msg(u"loading '%s'" % path)
 
 		# Open the video file
-		if not os.path.exists(path) or str(self.eval_text("video_src")).strip() \
-			== "":
+		if not os.path.exists(path) or str(self.eval_text(u"video_src")) \
+			.strip() == "":
 			raise osexception( \
-				"Video file '%s' was not found by video_player '%s' (or no video file was specified)." \
+				u"Video file '%s' was not found by video_player '%s' (or no video file was specified)." \
 				% (os.path.basename(path), self.name))
 
 		if self.hasMediaInfo:
-			debug.msg("Reading file media parameters")
+			debug.msg(u"Reading file media parameters")
 			mi = MediaInfo.parse(path)
 			try:
 				mi = MediaInfo.parse(path)
 				for track in mi.tracks:
-					if track.track_type == "Video":		
+					if track.track_type == u"Video":
 						self.framerate = float(track.frame_rate)
 						if self.framerate < 1:
-							debug.msg("Frame rate info unavailable!", \
-								reason="warning")
+							debug.msg(u"Frame rate info unavailable!", \
+								reason=u"warning")
 						else:
 							self.frame_duration = 1000/self.framerate
 			except:
 				raise osexception( \
-					"Error parsing media file. Possibly the video file is corrupt")
+					u"Error parsing media file. Possibly the video file is corrupt")
 		
-		self.vlcInstance = vlc.Instance("--no-video-title-show")
+		self.vlcInstance = vlc.Instance(u"--no-video-title-show")
 		self.player = self.vlcInstance.media_player_new()
 			
 		try:
@@ -220,22 +222,22 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			self.released = False	
 		except:
 			raise osexception( \
-				"Error loading media file. Unsupported format?")
+				u"Error loading media file. Unsupported format?")
 
 		# If playaudio is set to no, tell vlc to mute the movie
-		if self.playaudio == "no":
+		if self.playaudio == u"no":
 			self.player.audio_set_mute(True)
 		else:
 			self.player.audio_set_mute(False)
 			# Solves bug in vlc bindings: unmute sets sound status to unmuted but
 			# sets volume to 0
-			self.player.audio_set_volume(75)   
+			self.player.audio_set_volume(75)
 
 		# create reference to vlc event handler and set up event handling
 		self.vlc_event_handler = self.player.event_manager()
 
 		# Send info to eyelink if it is found attached
-		if self.sendInfoToEyelink == "yes":
+		if self.sendInfoToEyelink == u"yes":
 			self.vlc_event_handler.event_attach( \
 				vlc.EventType.MediaPlayerTimeChanged, self.startCheck)
 
@@ -245,7 +247,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		# Indicate function for clean up that is run after the experiment finishes
 		self.experiment.cleanup_functions.append(self.closePlayer)
 		
-		if self.resizeVideo == "no":		
+		if self.resizeVideo == u"no":
 			self.player.video_set_scale(1.0)
 		
 		# Reinitialize variables
@@ -283,10 +285,10 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		if self.frame_duration > 0:	
 			frame_no = int((self.experiment.time() - self.startPlaybackTime) \
 				/ self.frame_duration)
-			if hasattr(self.experiment,"eyelink") and \
+			if hasattr(self.experiment, u"eyelink") and \
 				self.experiment.eyelink.connected():
-				self.experiment.eyelink.log("videoframe {0}".format(frame_no) )
-				self.experiment.eyelink.status_msg("videoframe {0}".format( \
+				self.experiment.eyelink.log(u"videoframe {0}".format(frame_no) )
+				self.experiment.eyelink.status_msg(u"videoframe {0}".format( \
 					frame_no))
 				
 	def handleEvent(self, event=None):
@@ -308,7 +310,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			frame_no = int((self.experiment.time() - self.startPlaybackTime) \
 				/ self.frame_duration)
 		
-		if event is not None:
+		if event is not None and event.type == pygame.KEYDOWN:
 			key = pygame.key.name(event.key)
 		else:
 			key = None
@@ -319,7 +321,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			exec(self._event_handler)
 		except Exception as e:
 			raise osexception( \
-				"Error while executing event handling code: %s" % e)
+				u"Error while executing event handling code: %s" % e)
 
 		if type(continue_playback) != bool:
 			continue_playback = False
@@ -341,18 +343,18 @@ class media_player_vlc(item.item, generic_response.generic_response):
 
 		# Set some response variables, in case a response will be given
 		if self.experiment.start_response_interval == None:
-			self.experiment.start_response_interval = self.get("time_%s" % \
+			self.experiment.start_response_interval = self.get(u"time_%s" % \
 				self.name)
 			self.experiment.end_response_interval = \
 				self.experiment.start_response_interval
 		self.experiment.response = None
 
 		if not self.file_loaded:
-			raise osexception("No video loaded")
+			raise osexception(u"No video loaded")
 			
 		#Start movie playback
 		self.player.play()
-		debug.msg("Movie framerate: {0}".format(self.framerate))
+		debug.msg(u"Movie framerate: {0}".format(self.framerate))
 		
 		while self.player.get_state() == vlc.State.Opening:
 			pass #Wait until movie has opened
@@ -373,13 +375,13 @@ class media_player_vlc(item.item, generic_response.generic_response):
 						if self._event_handler != None:
 							self.playing = self.handleEvent(event)
 						elif event.type == pygame.KEYDOWN and self.duration == \
-							"keypress":
+							u"keypress":
 							self.playing = False
 							self.experiment.response = pygame.key.name(event.key)
 							self.experiment.end_response_interval = \
 								pygame.time.get_ticks()
 						elif event.type == pygame.MOUSEBUTTONDOWN and \
-							self.duration == "mouseclick":
+							self.duration == u"mouseclick":
 							self.playing = False
 							self.experiment.response = event.button
 							self.experiment.end_response_interval = \
@@ -389,7 +391,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 						if event.type == pygame.KEYDOWN and event.key \
 							== pygame.K_ESCAPE:
 							raise osexception( \
-								"The escape key was pressed")
+								u"The escape key was pressed")
 
 					# Check if max duration has been set, and exit if exceeded
 					if type(self.duration) == int:
@@ -411,7 +413,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 					# reliable frame info the data sent to the EyeLink is
 					# virtually useless.
 					raise osexception( \
-						"Cannot send reliable info to the EyeLink as there is no info about the frame rate of this movie.") 
+						u"Cannot send reliable info to the EyeLink as there is no info about the frame rate of this movie.") 
 				
 			#Sleep for rest of frame
 			if self.frame_duration > 0:
@@ -436,132 +438,38 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			self.player.release()
 			self.vlcInstance.release()
 			self.media = None
-			debug.msg("Released VLC modules")
+			debug.msg(u"Released VLC modules")
 			self.released = True
 
 	def var_info(self):
 		return generic_response.generic_response.var_info(self)
+	
+class qtmedia_player_vlc(media_player_vlc, qtautoplugin):
+	
+	"""GUI part of the plug-in."""
 
-class qtmedia_player_vlc(media_player_vlc, qtplugin.qtplugin):
-
-	"""Handles the GUI aspects of the plug-in"""
-
-	def __init__(self, name, experiment, string = None):
-
+	def __init__(self, name, experiment, script=None):
+		
 		"""
-		Constructor. This function doesn't do anything specific
-		to this plugin. It simply calls its parents. Don't need to
-		change, only make sure that the parent name matches the name
-		of the actual parent.
-
+		Constructor.
+		
 		Arguments:
-		name -- the name of the item
-		experiment -- the opensesame experiment
-
+		name		--	The item name.
+		experiment	--	The experiment object.
+		
 		Keyword arguments:
-		string -- a definition string for the item (Default = None)
+		script		--	The definition script. (default=None).
 		"""
 
-		# Pass the word on to the parents
-		media_player_vlc.__init__(self, name, experiment, string)
-		qtplugin.qtplugin.__init__(self, __file__)
-
-	def init_edit_widget(self):
-
-		"""This function creates the controls for the edit widget"""
-
-		# Lock the widget until we're doing creating it
-		self.lock = True
-
-		# Pass the word on to the parent
-		qtplugin.qtplugin.init_edit_widget(self, False)
-
-		# We don't need to bother directly with Qt4, since the qtplugin class contains
-		# a number of functions which directly create controls, which are automatically
-		# applied etc. A list of functions can be found here:
-		# http://files.cogsci.nl/software/opensesame/doc/libqtopensesame/libqtopensesame.qtplugin.html
-		self.add_filepool_control("video_src", "Video file", self.browse_video, \
-			default = "", tooltip = "A video file")
-		self.add_combobox_control("playaudio", "Play audio", ["yes", "no"], \
-			tooltip= \
-			"Specifies if the video has to be played with audio, or in silence")
-		self.add_combobox_control("resizeVideo", "Fit video to screen", ["yes", "no"], \
-			tooltip= \
-			"Specifies if the video has to be stretched over the screen width")
-		self.add_combobox_control("sendInfoToEyelink", \
-			"Send frame no. to EyeLink", ["yes", "no"], tooltip= \
-			"If an eyelink is connected, then it will receive the number of each displayed frame as a msg event.\r\nYou can also see this information in the eyelink's status message box.\r\nThis option requires the installation of the OpenSesame EyeLink plugin and an established connection to the EyeLink.")
-		self.add_combobox_control("event_handler_trigger", \
-			"Call custom Python code", ["on keypress", "after every frame"], \
-			tooltip = "Determine when the custom event handling code is called.")
-		self.add_line_edit_control("duration", "Duration", tooltip = \
-			"Expecting a value in seconds, 'keypress' or 'mouseclick'")
-		self.add_editor_control("event_handler", \
-			"Custom Python code for handling keypress and mouseclick events (See Help for more information)", \
-			syntax = True, tooltip = \
-			"Specify how you would like to handle events like mouse clicks or keypresses. When set, this overrides the Duration attribute")
-		self.add_text( \
-			"<small><b>Media Player VLC OpenSesame Plugin v%.2f, Copyright (2010-2012) Daniel Schreij</b></small>" \
-			% self.version)
-
-		# Unlock
-		self.lock = True
-
-	def browse_video(self):
-
-		"""
-		This function is called when the browse button is clicked
-		to select a video from the file pool. It displays a filepool
-		dialog and changes the video_src field based on the selection.
-		"""
-
-		s = pool_widget.select_from_pool(self.experiment.main_window)
-		if str(s) == "":
-				return
-		self.auto_line_edit["video_src"].setText(s)
-		self.apply_edit_changes()
-
+		media_player_vlc.__init__(self, name, experiment, script)
+		qtautoplugin.__init__(self, __file__)
+	
 	def apply_edit_changes(self):
-
-		"""
-		Set the variables based on the controls. The code below causes
-		this to be handles automatically. Don't need to change.
-
-		Returns:
-		True on success, False on failure
-		"""
-
-		# Abort if the parent reports failure of if the controls are locked
-		if not qtplugin.qtplugin.apply_edit_changes(self, False) or self.lock:
-			return False
-
-		# Refresh the main window, so that changes become visible everywhere
-		self.experiment.main_window.refresh(self.name)
-
-		# Report success
-		return True
-
-	def edit_widget(self):
-
-		"""
-		Set the controls based on the variables. The code below causes
-		this to be handled automatically. Don't need to change.
-		"""
-
-		# Lock the controls, otherwise a recursive loop might arise
-		# in which updating the controls causes the variables to be
-		# updated, which causes the controls to be updated, etc...
-		self.lock = True
-
-		# Let the parent handle everything
-		qtplugin.qtplugin.edit_widget(self)
 		
-		self.auto_line_edit['duration'].setEnabled(self.auto_combobox[ \
-			'event_handler_trigger'].currentIndex() == 0)
+		"""Applies changes to the controls."""
 		
-		# Unlock
-		self.lock = False
-
-		# Return the _edit_widget
-		return self._edit_widget
-
+		qtautoplugin.apply_edit_changes(self)
+		# The duration field is enabled or disabled based on whether a custom
+		# event handler is called or not.
+		self.line_edit_duration.setEnabled( \
+			self.combobox_event_handler_trigger.currentIndex() == 0)
