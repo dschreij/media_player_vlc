@@ -403,7 +403,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 					if type(self.duration) == int:
 						if self.timer.getTime() - starttime > self.duration:
 							self.playing = False
-				    '''
+					'''
 			#Send info to the eyelink if applicable
 			if self.sendInfoToEyelink == "yes" and self.playbackStarted:
 				if self.frame_duration > 0:
