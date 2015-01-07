@@ -395,15 +395,15 @@ class media_player_vlc(item.item, generic_response.generic_response):
 
 					# Check if max duration has been set, and exit if exceeded
 					if type(self.duration) == int:
-						if pygame.time.get_ticks() - startTime > \
+						if pygame.time.get_ticks() - starttime > \
 							(self.duration*1000):
 							self.playing = False
-
+					'''		
 					# Check if max duration has been set, and exit if exceeded
 					if type(self.duration) == int:
-						if self.timer.getTime() - startTime > self.duration:
+						if self.timer.getTime() - starttime > self.duration:
 							self.playing = False
-				
+					'''
 			#Send info to the eyelink if applicable
 			if self.sendInfoToEyelink == "yes" and self.playbackStarted:
 				if self.frame_duration > 0:
