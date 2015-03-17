@@ -1,7 +1,7 @@
 MEDIA_PLAYER_VLC
 ================
 
-Copyright 2010-2012 Daniel Schreij <d.schreij@vu.nl>
+Copyright 2010-2015 Daniel Schreij <d.schreij@vu.nl>
 
 ABOUT
 -----
