@@ -82,7 +82,6 @@ class media_player_vlc(item.item, generic_response.generic_response):
 		"""
 
 		self.file_loaded = False
-		self.paused = False
 		self.resizeVideo = u"yes"
 		self.duration = u"keypress"
 		self.playaudio = u"yes"
@@ -336,8 +335,8 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			pass #Wait until movie has opened
 
 		self.playing = True
+		self.starttime = self.experiment.time()
 		while self.player.get_state() != vlc.State.Ended and self.playing:
-			starttime = self.experiment.time()
 
 			if self.playbackStarted and self.startPlaybackTime == 0:
 				self.startPlaybackTime = self.experiment.time()
@@ -369,11 +368,11 @@ class media_player_vlc(item.item, generic_response.generic_response):
 						raise osexception( \
 							u"The escape key was pressed")
 
-					# Check if max duration has been set, and exit if exceeded
-					if type(self.duration) == int:
-						if pygame.time.get_ticks() - starttime > \
-							(self.duration*1000):
-							self.playing = False
+			# Check if max duration has been set, and exit if exceeded
+			if type(self.duration) == int:
+				if pygame.time.get_ticks() - self.starttime > \
+					(self.duration*1000):
+					self.playing = False
 
 			#Send info to the eyelink if applicable
 			if self.sendInfoToEyelink == "yes" and self.playbackStarted:
@@ -389,7 +388,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 			#Sleep for rest of frame
 			if self.frame_duration > 0:
 				sleeptime = int(self.frame_duration - \
-					(self.experiment.time() - starttime))
+					(self.experiment.time() - self.starttime))
 				if sleeptime > 0:
 					self.experiment.sleep(sleeptime)
 
