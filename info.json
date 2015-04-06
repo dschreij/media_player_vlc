@@ -1,5 +1,5 @@
 {
-	"version"		: "1.0.1",
+	"version"		: "1.1.0",
 	"author"		: "Daniel Schreij",
 	"url"			: "https://github.com/dschreij/media_player_vlc",
 	"category"		: "Visual stimuli",
@@ -67,8 +67,7 @@
 		},
 		{
 			"type"		: "text",
-			"label"		: "<small><b>Media Player VLC OpenSesame Plugin 1.0.1, Copyright (2010-2013) Daniel Schreij</b></small>"
+			"label"		: "<small><b>Media Player VLC OpenSesame Plugin 1.1.0, Copyright (2010-2013) Daniel Schreij</b></small>"
 		}
 	]
 }
-
