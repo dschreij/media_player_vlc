@@ -370,7 +370,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 
 			# Check if max duration has been set, and exit if exceeded
 			if type(self.duration) == int:
-				if pygame.time.get_ticks() - self.starttime > \
+				if self.experiment.time() - self.starttime > \
 					(self.duration*1000):
 					self.playing = False
 
@@ -402,6 +402,7 @@ class media_player_vlc(item.item, generic_response.generic_response):
 
 	def closePlayer(self):
 		if not self.released:
+			self.media.release()
 			self.player.release()
 			self.vlcInstance.release()
 			self.media = None
