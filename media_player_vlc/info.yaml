@@ -1,0 +1,51 @@
+author: "Daniel Schreij"
+category: "Visual stimuli"
+controls:
+  -
+    label: "Video file"
+    tooltip: "A video file"
+    type: filepool
+    var: video_src
+  -
+    label: "Play audio"
+    options:
+      - "yes"
+      - "no"
+    tooltip: "Specifies if the video has to be played with audio, or in silence"
+    type: combobox
+    var: playaudio
+  -
+    label: "Fit video to screen"
+    options:
+      - "yes"
+      - "no"
+    tooltip: "Specifies if the video has to be stretched over the screen width"
+    type: combobox
+    var: resizeVideo
+  -
+    label: "Call custom Python code"
+    name: combobox_event_handler_trigger
+    options:
+      - "on keypress"
+      - "after every frame"
+    tooltip: "Determine when the custom event handling code is called."
+    type: combobox
+    var: event_handler_trigger
+  -
+    label: Duration
+    name: line_edit_duration
+    tooltip: "Expecting a value in milliseconds or 'keypress'"
+    type: line_edit
+    var: duration
+    validator: duration
+  -
+    label: "Custom Python code (See Help for more information)"
+    syntax: true
+    tooltip: "Specify how you would like to handle events like mouse clicks or keypresses. When set, this overrides the Duration attribute"
+    type: editor
+    var: event_handler
+  -
+    label: "<small><b>Media Player VLC OpenSesame Plugin 2.0.0, Copyright (2010-2015) Daniel Schreij</b></small>"
+    type: text
+url: "https://github.com/dschreij/media_player_vlc"
+version: "2.0.0"
